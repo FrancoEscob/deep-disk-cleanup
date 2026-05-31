@@ -1,21 +1,20 @@
 # ==============================================================
-#  limpiar-residuales.ps1
+#  limpiar-residuales.ps1  --  TEMPLATE
 #  Kills "tech debt" in AppData\Local:
-#    A) curated list of confirmed-dead app folders
-#    B) EVERY level-1 folder that is 100% empty (0 bytes)
+#    A) curated list of confirmed-dead app folders  (Claude fills $dead)
+#    B) EVERY level-1 folder that is 100% empty (0 bytes)  (generic, no edit)
 #  Shows everything and asks before deleting.
-#  Customize $dead per user before running.
-#  Run: powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\limpiar-residuales.ps1"
+#  Run: powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\residuals-<user>.ps1"
 # ==============================================================
 
 $L = $env:LOCALAPPDATA
 
-# --- A) Curated dead/old app folders (EDIT per user) ---
+# --- A) Curated dead/old app folders ---
+#  >>> PERSONALIZE <<<  Claude: add the EXACT folder names the user confirmed
+#  as dead/unused during the interview (from the scan). Leave empty to run only
+#  the empty-folder sweep (Part B). These were one machine's examples:
 $dead = @(
-    # 'com.voxidian.app', 'Terax', 'draw.io-updater', 'Honeygain',
-    # 'DaVinci Resolve Welcome', 'Saints Row IV', 'EvilDead', 'lm-studio-updater',
-    # 'realtimeboard-updater', 'crossover-updater', 'cron-web-updater',
-    # 'StreamingVideoProvider', 'sshfs-win-manager-updater', 'termius-updater', 'obsidian-updater'
+    # 'SomeOldApp', 'another-updater', 'GameYouUninstalled'
 )
 
 function SizeMB($p) {

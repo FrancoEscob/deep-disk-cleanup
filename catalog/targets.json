@@ -1,0 +1,437 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "schema_version": "1.0",
+    "description": "Data-driven, extensible catalog of portable disk bloat targets for the deep-disk-cleanup skill. This is the CORE for true generality: agents load it (via read_file or equivalent) to drive context-aware live scans, bucket targets into 🟢/🟡/🔴, surface rich built-in education (why, decision guidance, safer partials, tradeoffs), and recommend prune methods. All personalization remains per-machine via live measurement + user interview. No hard-coded user paths.",
+    "last_updated": "2026-06-04",
+    "how_agents_use_it": "1. Read this file early (after detection). 2. For current platform/context (WSL counts as linux+windows-hybrid), resolve/expand each entry's 'paths' (handle ~, %VAR%, $HOME, Windows vs POSIX, drvfs mounts). 3. During scan, measure sizes of matching existing paths using native tools (du, Get-ChildItem, diskutil, etc). 4. Use 'category' to decide flow: green for low-regret batches after one perm, yellow for per-item or grouped interview with the provided 'decision_guidance' + live size/mtime data. 5. Use the why/decision/safer/tradeoff fields verbatim or adapted to educate user before any ask. 6. Prefer 'prune_commands' native to the tool/ecosystem when present (smarter than raw rm). 7. For red: use to auto-exclude or warn during any broad scan. 8. Unknown large dirs from live top-N scan are still categorized using the portable decision frameworks (see REFERENCE + explanations/decision-frameworks.md) — this catalog seeds the common cases. 9. Report using the entry 'description'. Catalog is read-only knowledge; live findings + user confirms drive actions.",
+    "extensibility": "Community contributions: Add a new object to the 'targets' array. Provide evidence from real scan on your machine (size, why it grew, platforms). Justify category. Include prune hint or command. Test that it would not match 🔴 areas. Update last_updated. PRs welcome. See catalog/README.md and CONTRIBUTING.md for process. This makes the skill grow without central author knowledge.",
+    "categories": {
+      "green": "🟢 Regenerable — Low user intent. Tool or next use will recreate. Low-regret to clear (after measure + batch confirm). Prefer native prune command if available.",
+      "yellow": "🟡 Ask the User — Contains user-chosen data, history, preference, paid media, or expensive-to-reacquire items (e.g. models, full toolchains, game installs, old projects). ALWAYS interview with live size + recency + contents summary + the decision_guidance here. Offer safer_partials. Never auto-delete.",
+      "red": "🔴 Never Touch — High blast radius (breaks OS, WSL, drivers, apps, or requires reinstall). Guide user to official uninstaller / proper removal channel instead. Catalog helps detection/scan code skip or warn."
+    },
+    "path_resolution_notes": "Paths use POSIX ~ and common env vars. Agent must adapt: on Windows use %LOCALAPPDATA% etc or PowerShell $env. On WSL inside, ~ is Linux home; for host-visible Windows paths use /mnt/c/... or bridge. Some entries list multiple variants for different OS/managers. Globs: use * sparingly and expand safely during scan (e.g. ~/.cache/* for sub-caches). Special handling noted for browser caches (never delete whole User Data).",
+    "notes_for_direct_execution": "After permission, agent executes the prune or rm using its run_terminal_command (or bridged). For cross-boundary (compact), separate. Always inspect (ls, last mod, lsof/ps for open), measure before, report after."
+  },
+  "targets": [
+    {
+      "id": "npm-cache",
+      "paths": ["~/.npm", "%LOCALAPPDATA%\\npm-cache", "$LOCALAPPDATA\\npm-cache"],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "npm / node package cache",
+      "why_this_bucket": "Pure regenerable cache of downloaded tarballs and metadata. `npm install` will re-populate what is needed. Low user intent.",
+      "decision_guidance": "Rarely controversial. If you have global npm packages installed via npm, confirm they are not here (usually in -g prefix instead). Measure size; usually safe to prune.",
+      "safer_partials": ["Use `npm cache clean --force` (preferred, may keep some) instead of raw delete.", "Prune only packages not recently used if tool supports."],
+      "tradeoff_notes": "First `npm install` or `npx` after may be slower (re-downloads). Usually seconds to minutes of time vs GBs freed.",
+      "prune_commands": {
+        "all": "npm cache clean --force",
+        "windows_note": "May need to run in cmd or where npm is in PATH."
+      },
+      "notes": "Auto-skip if path absent. Inspect for bin/ or global installs if suspicious. Common 100MB-2GB+."
+    },
+    {
+      "id": "pip-cache",
+      "paths": ["~/.cache/pip", "%LOCALAPPDATA%\\pip", "~/.cache/pip"],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "pip / Python package cache",
+      "why_this_bucket": "Downloaded wheels and source dists. pip will re-download on next install/upgrade. Regenerable.",
+      "decision_guidance": "Very safe. If using pip with --no-cache-dir habitually, size will be small.",
+      "safer_partials": ["pip cache purge (if available in your pip version)", "rm -rf specific wheels for old Python versions only."],
+      "tradeoff_notes": "Re-downloads on next pip install. Negligible for most.",
+      "prune_commands": {
+        "posix": "pip cache purge || rm -rf ~/.cache/pip",
+        "windows": "pip cache purge"
+      },
+      "notes": "Also look for ~/.cache/pip on *nix."
+    },
+    {
+      "id": "uv-cache",
+      "paths": ["~/.cache/uv", "%LOCALAPPDATA%\\uv"],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "uv (fast Python package manager) cache and wheels",
+      "why_this_bucket": "Modern Python toolchain cache; uv explicitly manages and can recreate.",
+      "decision_guidance": "Safe. uv users often have large ones from many envs.",
+      "safer_partials": ["uv cache clean (if subcommand exists)", "Prune only old Python versions' caches."],
+      "tradeoff_notes": "uv is fast at re-populating; worth it.",
+      "prune_commands": {
+        "all": "uv cache clean"
+      },
+      "notes": "Newer tool, growing fast in popularity among devs."
+    },
+    {
+      "id": "pnpm-store",
+      "paths": ["~/.local/share/pnpm", "%LOCALAPPDATA%\\pnpm", "~/.pnpm-store", "$LOCALAPPDATA\\pnpm"],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "pnpm global store / cache (content-addressable)",
+      "why_this_bucket": "pnpm's efficient store of package versions. Can be pruned; pnpm will refetch as needed for projects.",
+      "decision_guidance": "Safe for the store. If you use pnpm globally for CLIs, check that the bin dir is not inside the store being deleted.",
+      "safer_partials": ["pnpm store prune (official, recommended)", "Only delete if no active pnpm projects you care about short-term."],
+      "tradeoff_notes": "pnpm store prune is the smart way; raw rm works too since content hash based.",
+      "prune_commands": {
+        "all": "pnpm store prune"
+      },
+      "notes": "Often larger than npm because it keeps many versions for dedup."
+    },
+    {
+      "id": "node-gyp-cache",
+      "paths": ["~/.cache/node-gyp", "%LOCALAPPDATA%\\node-gyp"],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "node-gyp / native module build cache",
+      "why_this_bucket": "Compiled native addons cache for node. Recreated on next native dep install.",
+      "decision_guidance": "Low risk. Mostly build artifacts.",
+      "safer_partials": [],
+      "tradeoff_notes": "Rebuild time for native modules (e.g. sharp, canvas) on first use after.",
+      "prune_commands": {},
+      "notes": "Can be multiple GB if you have many native projects."
+    },
+    {
+      "id": "go-build-cache",
+      "paths": ["%LOCALAPPDATA%\\go-build", "$GOPATH/pkg/mod", "~/go/pkg/mod", "~/.cache/go-build"],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "Go module cache and build cache",
+      "why_this_bucket": "Go modules are content-addressed and re-downloadable. Build cache is pure artifact.",
+      "decision_guidance": "Safe. `go clean -modcache` or build cache clear are official.",
+      "safer_partials": ["go clean -cache -modcache (official)"],
+      "tradeoff_notes": "Next go build / go mod tidy will repopulate. Usually fast.",
+      "prune_commands": {
+        "all": "go clean -cache -modcache"
+      },
+      "notes": "Mod cache can be large with many deps; build cache too."
+    },
+    {
+      "id": "cypress-cache",
+      "paths": ["%LOCALAPPDATA%\\Cypress\\Cache", "~/.cache/Cypress", "~/Library/Caches/Cypress"],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "Cypress end-to-end test binary cache",
+      "why_this_bucket": "Large Electron-based browser binaries for Cypress. Re-installed by `npx cypress install` or on next test run.",
+      "decision_guidance": "If you no longer run Cypress tests, completely safe. Otherwise still low regret.",
+      "safer_partials": ["Let Cypress manage: it prunes old versions sometimes."],
+      "tradeoff_notes": "Re-download of ~200-500MB per version on next use.",
+      "prune_commands": {},
+      "notes": "Very common large cache for FE devs."
+    },
+    {
+      "id": "nuget-cache",
+      "paths": ["%LOCALAPPDATA%\\NuGet\\v3-cache", "~/.nuget/packages"],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": ".NET / NuGet package cache",
+      "why_this_bucket": "NuGet packages are restored from source on build. Cache of nupkgs.",
+      "decision_guidance": "Safe for most .NET devs; builds will restore.",
+      "safer_partials": ["dotnet nuget locals all --clear (official)"],
+      "tradeoff_notes": "Restore time on next build/solution open.",
+      "prune_commands": {
+        "all": "dotnet nuget locals all --clear"
+      },
+      "notes": "Common on Windows devs, also cross platform."
+    },
+    {
+      "id": "yarn-cache",
+      "paths": ["%LOCALAPPDATA%\\Yarn\\Cache", "~/.yarn/berry/cache", "~/.cache/yarn"],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "Yarn classic / berry cache",
+      "why_this_bucket": "Regenerable package cache for Yarn.",
+      "decision_guidance": "Safe.",
+      "safer_partials": ["yarn cache clean"],
+      "tradeoff_notes": "Minor re-download.",
+      "prune_commands": {
+        "all": "yarn cache clean"
+      },
+      "notes": "Less common now than pnpm/npm but still seen."
+    },
+    {
+      "id": "playwright-camoufox-cache",
+      "paths": ["~/.cache/ms-playwright", "%LOCALAPPDATA%\\ms-playwright", "~/.cache/camoufox", "~/Library/Caches/ms-playwright"],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "Headless browser automation caches (Playwright, Puppeteer, Camoufox, Selenium)",
+      "why_this_bucket": "Full browser binaries (Chromium, Firefox, WebKit) downloaded for testing/automation. Re-downloaded by `npx playwright install` etc.",
+      "decision_guidance": "If you use Playwright or similar in CI or locally, size can be 1-3GB+. Safe to clear if not actively using right now.",
+      "safer_partials": ["Use the installer's built-in prune if any.", "Delete only specific browser versions not used."],
+      "tradeoff_notes": "Next automation run or test will re-fetch the browsers (hundreds of MB each).",
+      "prune_commands": {},
+      "notes": "Critical for e2e/ scraping users; often overlooked large consumer."
+    },
+    {
+      "id": "ide-remote-servers",
+      "paths": ["~/.cursor-server", "~/.vscode-server", "~/.zed_server", "%LOCALAPPDATA%\\cursor-server", "%APPDATA%\\Code\\User\\workspaceStorage"],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "VS Code / Cursor / Zed remote development server extensions and caches",
+      "why_this_bucket": "These are the server-side bits auto-installed when you attach VS Code/Cursor/Zed to a remote/WSL/container/SSH. They reinstall on next connect.",
+      "decision_guidance": "If you use remote dev features, they will come back. Clearing frees space until next attach. Very common in dev machines.",
+      "safer_partials": ["Only delete old version dirs inside (e.g. server-1.80 vs current)."],
+      "tradeoff_notes": "Slight delay + re-download (~50-200MB) the next time you open a remote workspace.",
+      "prune_commands": {},
+      "notes": "Huge value on WSL and remote Linux boxes. Do not delete your local VS Code install itself."
+    },
+    {
+      "id": "browser-caches-chromium",
+      "paths": [
+        "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Cache",
+        "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Code Cache",
+        "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Cache",
+        "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Cache",
+        "%LOCALAPPDATA%\\Vivaldi\\User Data\\Default\\Cache",
+        "~/.cache/google-chrome/Default/Cache",
+        "~/Library/Caches/Google/Chrome/Default/Cache"
+      ],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "Chromium-family browser caches (Chrome, Edge, Brave, Vivaldi, Arc, Comet etc.) — cache subfolders ONLY",
+      "why_this_bucket": "Pure web cache, code cache, GPU shaders, service worker caches. Regenerable on next visits. CRITICAL: never the whole profile (would lose logins, bookmarks, extensions, history, passwords).",
+      "decision_guidance": "Always safe for the cache bits. Close browsers first. Huge on heavy users (tens of GB possible with lots of tabs/media).",
+      "safer_partials": ["Clear via browser UI (Settings → Privacy → Clear browsing data → Cached images and files) — sometimes smarter.", "Only clear specific profiles you don't use often."],
+      "tradeoff_notes": "Websites may load slower on first revisit after clear (re-downloads assets). Logins unaffected if only cache dirs targeted.",
+      "prune_commands": {},
+      "notes": "Agent must target only the listed Cache/* subdirs, not the parent User Data. Use the ClearChromiumCache pattern from scripts/limpieza-profunda.ps1 as reference. Firefox has separate (less cache-heavy usually)."
+    },
+    {
+      "id": "ollama-models",
+      "paths": ["~/.ollama/models", "%LOCALAPPDATA%\\Ollama\\models", "~/Library/Application Support/Ollama/models"],
+      "category": "yellow",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "Ollama local LLM models (gguf weights, manifests, blobs)",
+      "why_this_bucket": "User explicitly pulled large binary model files (often 4-70GB each). Expensive in time/bandwidth (and sometimes money if from gated sources). Different models have different value to the user.",
+      "decision_guidance": "Lead with live scan: size, list largest subdirs or manifests, last-modified times. Ask: 'Which of these specific models (by name or size) do you still load regularly for work, chat, or experiments? Any old ones from 6+ months ago you can re-pull if needed later?' Offer to keep favorites, delete the rest.",
+      "safer_partials": ["Use Ollama's own model management (ollama rm <name>) or the desktop app's model list to selectively delete.", "Delete only layers/blobs for unused models while keeping manifests if possible.", "Keep only the 1-2 you use most."],
+      "tradeoff_notes": "Re-pulling a 7B or 70B model can take hours and bandwidth. But unused ones just sit wasting space. Most users have 2-4 dead experiments.",
+      "prune_commands": {
+        "all": "ollama rm <specific-model-tags>  # interactive per model preferred"
+      },
+      "notes": "Often the single largest consumer for local AI users. Distinguish full weights vs just some layers. After delete, may need to clean Ollama UI metadata in some cases. Always after education."
+    },
+    {
+      "id": "huggingface-cache",
+      "paths": ["~/.cache/huggingface", "%LOCALAPPDATA%\\huggingface", "~/Library/Caches/huggingface"],
+      "category": "yellow",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "Hugging Face Hub cache (models, datasets, safetensors, bin files)",
+      "why_this_bucket": "Explicit user downloads of large ML artifacts. Re-acquiring can be slow, quota-limited, or require login/gated access. Mix of models you actively use vs old experiments.",
+      "decision_guidance": "Scan for largest repos (often under models-- or datasets--). Ask about last use and whether still referenced in current projects/scripts. 'This 12GB safetensors under huggingface is from 8 months ago — still training or inferring with it?'",
+      "safer_partials": ["Use huggingface-cli delete-cache or the cache management in transformers/datasets libs.", "Delete only specific model dirs you confirm dead.", "Use HF_HUB_ENABLE_HF_TRANSFER etc but for cleanup, selective rm."],
+      "tradeoff_notes": "Re-download cost high for large models. But many people accumulate dozens of variants they never touch again.",
+      "prune_commands": {},
+      "notes": "Can overlap with ollama if using HF models. Inspect for .git or metadata dirs that may be lighter."
+    },
+    {
+      "id": "rust-toolchains",
+      "paths": ["~/.rustup/toolchains", "~/.cargo"],
+      "category": "yellow",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "Rustup installed toolchains + cargo registry, git checkouts, build artifacts",
+      "why_this_bucket": "Full Rust compiler toolchains (often 1-3GB per version) + source for crates you built against. User may or may not still write Rust. Cargo registry has regenerable parts but toolchains and personal git sources are heavier.",
+      "decision_guidance": "'Do you still write or compile any Rust code (even occasionally or for one project)? If we remove, we should also clean sourcing lines from your .zshrc/.bashrc/.profile etc.' List installed toolchains with sizes and dates. If no, safe to remove whole thing.",
+      "safer_partials": ["rustup toolchain remove <specific> (keep stable, remove nightlies/old)", "cargo clean in specific projects rather than global.", "Keep only current stable + one other."],
+      "tradeoff_notes": "Reinstall via rustup is easy but downloads ~300MB-1GB+ per toolchain. If you return to Rust later, you lose the exact old versions you had (though usually not an issue). After removal, follow up with rc-file edit permission.",
+      "prune_commands": {
+        "all": "rustup self uninstall || (rustup toolchain remove stable beta nightly && rm -rf ~/.cargo ~/.rustup)"
+      },
+      "notes": "After delete confirmed dead: offer small edit to shell rc files to remove 'source ~/.cargo/env' lines."
+    },
+    {
+      "id": "node-version-managers",
+      "paths": ["~/.nvm", "~/.fnm", "~/.asdf/installs/nodejs", "~/.volta", "%LOCALAPPDATA%\\nvm", "%LOCALAPPDATA%\\fnm"],
+      "category": "yellow",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "Multiple Node version managers and their installed Node runtimes (nvm, fnm, asdf, volta, corepack)",
+      "why_this_bucket": "Users often accumulate 2-4 different managers from different eras of their career + multiple Node versions (LTS + old projects). Full Node installs are 50-200MB+ each.",
+      "decision_guidance": "Ask which manager(s) are still your daily driver. 'nvm and fnm both present — which one do you actually use in 2026 for new projects?' List versions and last modified. Offer to keep the active one + its current Node, delete the rest.",
+      "safer_partials": ["nvm uninstall <version> for specific old ones.", "Keep only the manager you use + 1-2 recent Node versions."],
+      "tradeoff_notes": "Re-install Node is fast. Old projects that pinned exact old Node may need nvm/fnm install again, but usually documented in .nvmrc.",
+      "prune_commands": {},
+      "notes": "Very common source of bloat + confusion. Often people don't realize they have duplicates."
+    },
+    {
+      "id": "python-envs-managers",
+      "paths": ["~/.pyenv", "~/.conda/envs", "~/miniconda3/envs", "~/anaconda3/envs", "~/.virtualenvs", "%LOCALAPPDATA%\\pyenv"],
+      "category": "yellow",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "pyenv / conda / virtualenv / venv collections (old Python environments)",
+      "why_this_bucket": "Full Python installs + site-packages for projects you may no longer maintain. Conda envs especially large (1GB+ each with data science stacks).",
+      "decision_guidance": "'Which Python environments are you still actively using or activating? List recent ones by mtime or project association. Any abandoned experiments or old courses?'",
+      "safer_partials": ["pyenv uninstall <ver>", "conda env remove -n <name>", "Only delete envs with no recent activity and no .python-version or pyproject.toml pointing to them."],
+      "tradeoff_notes": "Recreating a complex conda env with specific pins can be time-consuming or brittle. But dead ones are pure waste.",
+      "prune_commands": {},
+      "notes": "For venvs inside projects: better to delete the whole project tree if abandoned (see other entries)."
+    },
+    {
+      "id": "ai-app-data-beyond-models",
+      "paths": ["%LOCALAPPDATA%\\lm-studio-updater", "%LOCALAPPDATA%\\lm-studio", "%LOCALAPPDATA%\\nomic.ai", "%LOCALAPPDATA%\\GPT4All", "~/Library/Application Support/LM Studio", "~/.config/lm-studio"],
+      "category": "yellow",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "Local AI desktop app data (LM Studio, GPT4All, nomic, etc.) — settings + caches + any bundled models",
+      "why_this_bucket": "Full app installs + downloaded models (may overlap ollama/hf) + conversation histories, settings. Some users keep the app, some have uninstalled but residuals remain.",
+      "decision_guidance": "If the app is still installed and used: clear caches only, interview for old models/conversations. If uninstalled: the whole residual becomes good 🟡 candidate for deletion.",
+      "safer_partials": ["App's own settings / model manager UI.", "Delete only models, keep app settings if reinstalling soon."],
+      "tradeoff_notes": "Re-download models again. Conversation history may be lost if not exported (usually not critical).",
+      "prune_commands": {},
+      "notes": "After uninstall of the app, revisit as stronger candidate. Combine with model catalogs."
+    },
+    {
+      "id": "downloads-folder",
+      "paths": ["~/Downloads", "%USERPROFILE%\\Downloads", "$HOME/Downloads"],
+      "category": "yellow",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "User Downloads folder — old ISOs, installers, zips, datasets, large files",
+      "why_this_bucket": "Mixed bag of intentional downloads that the user may have forgotten or meant to process 'someday'. Some are truly one-time (old OS images, papers). Size can be tens of GB.",
+      "decision_guidance": "Never mass delete without review. Use live scan: sort largest + oldest. 'These 8GB ISOs from 2023 — still need? The 4GB dataset zip?' Offer to move interesting ones to a 'review' folder first, or delete the obvious dead (old Chrome installers, random .exe from 2 years ago).",
+      "safer_partials": ["Review top 10-20 largest items only.", "Delete files older than N months with mtime filter, after showing list.", "Use OS trash instead of permanent rm (if agent supports)."],
+      "tradeoff_notes": "Risk of deleting something you 'might need'. But most people are surprised how much is dead weight.",
+      "prune_commands": {},
+      "notes": "On WSL, ~/Downloads may be Linux or map to Windows one (/mnt/c/Users/.../Downloads). Agent must detect and handle carefully (deletes in /mnt/c are host-visible immediately)."
+    },
+    {
+      "id": "abandoned-project-artifacts",
+      "paths": [],
+      "category": "yellow",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "Abandoned / duplicate / copied project trees containing giant build artifacts (node_modules, target, .next, build, dist, __pycache__ etc.)",
+      "why_this_bucket": "The source may be a git clone or copy of an old side project, tutorial, or fork you no longer edit. The artifacts are regenerable by `npm install` / `cargo build` if you ever revive the source. But the whole tree occupies space and may be duplicate of origin.",
+      "decision_guidance": "During broad scan (top folders in ~ or ~/src / ~/projects / ~/code), flag trees where: large size from known artifact dirs + git log shows no commits in 6+ months or no .git at all. Ask: 'Is the *source* of this project something you still edit or reference, or can it be re-cloned from git (or deleted) if you ever need it again?'",
+      "safer_partials": ["Delete only the build/artifact subdirs (node_modules, target/debug, .next/cache) and keep the source tree.", "rm -rf the whole tree only after user says the source is dead or backed up in git."],
+      "tradeoff_notes": "If source is truly dead and not in git, you lose the ability to look at old code. Usually people have it on GitHub or don't care. Deleting artifacts is almost always fine.",
+      "prune_commands": {},
+      "notes": "This is live-scan driven, not static catalog path. Catalog entry exists to remind agent of the pattern and the exact interview question + safer partial (artifact-only delete first)."
+    },
+    {
+      "id": "steam-games-and-launchers",
+      "paths": ["C:\\Program Files (x86)\\Steam\\steamapps\\common", "%LOCALAPPDATA%\\EpicGamesLauncher", "~/Library/Application Support/Steam/steamapps/common", "~/.steam", "C:\\Program Files\\Epic Games"],
+      "category": "yellow",
+      "platforms": ["windows", "linux", "macos"],
+      "description": "Game libraries (Steam, Epic, Ubisoft, Battle.net, GOG, etc.) and launcher data",
+      "why_this_bucket": "Tens to hundreds of GB. User paid for or downloaded games; may still play or want saves. Launchers have their own metadata and uninstall logic.",
+      "decision_guidance": "Strongly prefer launcher UI uninstall over raw folder delete. '40GB under SteamLibrary for titles you haven't launched in a year — still play any of them? Want to uninstall via Steam (right-click → Manage → Uninstall) so it cleans registry/metadata too?'",
+      "safer_partials": ["Uninstall selected titles only through the official launcher.", "Delete specific game subfolders only after launcher knows (or for non-Steam).", "Keep saves/cloud data (usually separate)."],
+      "tradeoff_notes": "Raw delete leaves launcher thinking the game is still 'installed' (can cause issues until verified/removed in UI). Re-download later if you change mind is what launchers are for.",
+      "prune_commands": {},
+      "notes": "For pure residuals after uninstall via launcher: those become better candidates later. On Linux (Steam Proton) paths differ."
+    },
+    {
+      "id": "macos-library-caches",
+      "paths": ["~/Library/Caches", "~/Library/Application Support", "~/Library/Logs", "~/Library/Containers/*/Data/Library/Caches"],
+      "category": "yellow",
+      "platforms": ["macos"],
+      "description": "macOS user Library caches, app support data, containers, logs (selective)",
+      "why_this_bucket": "macOS apps and system accumulate huge caches here. Some are safe (browser, Xcode, dev tools), some are app data you may value (chat histories, settings). 'Application Support' is often more 🟡 than pure Caches.",
+      "decision_guidance": "Differentiate: ~/Library/Caches/* is mostly green. Application Support for specific apps (e.g. old AI apps, Adobe residuals) is yellow — interview per large subdir. Use DaisyDisk or GrandPerspective for visual. Never touch /Library or /System.",
+      "safer_partials": ["App-specific 'Clear Cache' in the app prefs.", "Delete only top-level subfolders you confirm (e.g. com.spotify.client, old-IDE).", "tmutil thin for snapshots separately."],
+      "tradeoff_notes": "Some apps become slower or lose prefs on first relaunch. Containers/ are sandboxed app data.",
+      "prune_commands": {
+        "macos": "Use Finder or rm on specific; brew cleanup for homebrew."
+      },
+      "notes": "macOS analog to AppData/Local. Agent should use du -sh ~/Library/Caches/* | sort etc for scan. Combine with Xcode DerivedData entry."
+    },
+    {
+      "id": "xcode-derived-data",
+      "paths": ["~/Library/Developer/Xcode/DerivedData", "~/Library/Developer/CoreSimulator/Devices"],
+      "category": "yellow",
+      "platforms": ["macos"],
+      "description": "Xcode build intermediates, DerivedData, iOS Simulator device images and data",
+      "why_this_bucket": "Xcode loves to hoard GBs of build products, indexes, and full simulator runtimes/devices (each simulator can be 5-20GB+). Regenerable by re-building or re-adding simulator.",
+      "decision_guidance": "'Do you still actively develop for iOS/macOS in Xcode? Any old simulators for iOS 14/15 you no longer test on? DerivedData can usually be nuked safely for space.'",
+      "safer_partials": ["Xcode → Preferences → Locations → Derived Data → arrow → delete (or rm the folder).", "Simulator → Device → Delete (via Xcode UI).", "Only specific old device folders."],
+      "tradeoff_notes": "Re-index / first build after will be slower. Simulator re-download if needed later.",
+      "prune_commands": {
+        "macos": "rm -rf ~/Library/Developer/Xcode/DerivedData/* ; xcrun simctl delete unavailable (for old sims)"
+      },
+      "notes": "Huge for mobile devs on Mac. iOS sims are notorious space hogs."
+    },
+    {
+      "id": "brew-and-package-managers",
+      "paths": ["/opt/homebrew", "/usr/local/Homebrew", "/home/linuxbrew/.linuxbrew"],
+      "category": "green",
+      "platforms": ["macos", "linux"],
+      "description": "Homebrew (and linuxbrew) cache and old versions",
+      "why_this_bucket": "Brew keeps old kegs, downloads, logs. `brew cleanup` is the official way and is safe.",
+      "decision_guidance": "Very safe. Run the tool's own command.",
+      "safer_partials": ["brew cleanup -s (scrub)", "brew autoremove"],
+      "tradeoff_notes": "Minor; you lose ability to rollback easily to previous versions of formulae.",
+      "prune_commands": {
+        "macos_linux": "brew cleanup -s && brew autoremove"
+      },
+      "notes": "Detect if brew present via command -v. Run as part of system clean."
+    },
+    {
+      "id": "linux-package-and-journal",
+      "paths": ["/var/cache/apt", "/var/lib/apt/lists", "/var/log/journal"],
+      "category": "green",
+      "platforms": ["linux", "wsl"],
+      "description": "apt/dnf/pacman caches, lists, and systemd journal logs",
+      "why_this_bucket": "Package manager downloaded .deb/.rpm files and index lists (regenerable with apt update). Journal is history; vacuuming keeps recent.",
+      "decision_guidance": "Safe for cache. For journal, decide retention: 50M or 14 days is common conservative. User rarely cares about old boot logs.",
+      "safer_partials": ["apt-get clean ; apt-get autoclean", "journalctl --vacuum-size=100M --vacuum-time=30days (instead of aggressive)"],
+      "tradeoff_notes": "After clean, `apt update` re-downloads lists (small). Journal vacuum loses old diagnostic history (rarely needed).",
+      "prune_commands": {
+        "apt": "sudo apt-get autoremove --purge && sudo apt-get clean && sudo apt-get autoclean",
+        "journal": "sudo journalctl --vacuum-size=50M --vacuum-time=14days",
+        "dnf": "sudo dnf autoremove && sudo dnf clean all",
+        "pacman": "sudo pacman -Sc"
+      },
+      "notes": "Often needs sudo. Agent must have detected privilege level. Use sudo -n if available. Part of system maintenance."
+    },
+    {
+      "id": "docker-system",
+      "paths": [],
+      "category": "green",
+      "platforms": ["windows", "linux", "macos", "wsl"],
+      "description": "Docker build cache, images, containers, volumes (via prune, not raw rm on /var/lib/docker)",
+      "why_this_bucket": "Docker is designed to be pruned. `docker system prune` reclaims space inside the storage backend (vhdx on WSL/Windows, or native). Raw filesystem delete on docker root is dangerous and not recommended.",
+      "decision_guidance": "Educate: prune is safe for unused. `-a --volumes` is more aggressive (removes all unused images + named volumes — can delete data you wanted to keep if volumes were for persistence). Run `docker system df` first to show breakdown. Ask: 'Prune only dangling, or full unused including volumes? Any volumes you still mount for important data?'",
+      "safer_partials": ["docker system prune  (dangling only, safe default)", "docker builder prune", "docker volume prune (with list first)", "Never raw rm -rf /var/lib/docker or equivalent."],
+      "tradeoff_notes": "You will need to re-pull images you use. Named volumes with data: gone if pruned (that's why list + confirm).",
+      "prune_commands": {
+        "all": "docker system prune -a --volumes  # after `docker system df` and user confirmation on volumes"
+      },
+      "notes": "If WSL backend: this is the 'inside' step before compacting docker_data.vhdx. Agent detects via docker context or detection. Always show df output first."
+    },
+    {
+      "id": "wsl-kernel-and-injected",
+      "paths": ["/usr/lib/wsl"],
+      "category": "red",
+      "platforms": ["linux", "wsl"],
+      "description": "/usr/lib/wsl (WSL kernel, GPU accel drivers, interop components injected by Windows)",
+      "why_this_bucket": "Managed entirely by the WSL Windows-side installation. These are not normal Linux packages. Deleting breaks WSL (no kernel, no /mnt/c mounts, no GPU, etc.) until full reinstall/repair.",
+      "decision_guidance": "Never propose. If user asks about WSL not working, this is a common accidental cause. Guide to 'wsl --update' or repair from Windows Features / Settings.",
+      "safer_partials": ["Do nothing. Reinstall distro if needed via wsl --unregister + wsl --install, but only as last resort."],
+      "tradeoff_notes": "Breaking WSL is high pain; recovery involves re-downloading distro tarballs sometimes.",
+      "prune_commands": {},
+      "notes": "CRITICAL RED. Catalog entry exists so agent explicitly knows to skip / warn during any broad Linux/WSL scan. Detection will see WSL markers but this path is forbidden."
+    },
+    {
+      "id": "windows-system-protected",
+      "paths": ["C:\\Windows", "C:\\Windows\\WinSxS", "C:\\Program Files", "C:\\Program Files (x86)", "C:\\ProgramData\\Microsoft", "pagefile.sys", "hiberfil.sys", "swapfile.sys"],
+      "category": "red",
+      "platforms": ["windows"],
+      "description": "Windows core system directories, WinSxS, Program Files, page/hiber/swap files, protected ProgramData",
+      "why_this_bucket": "OS components, side-by-side assemblies, installed program files registered in the system, virtual memory files. Deleting or even touching causes boot failure, app breakage, or requires SFC / DISM repair or reinstall.",
+      "decision_guidance": "Never. If user wants an app gone: use Settings → Apps (or winget uninstall, or the app's own uninstaller). After clean uninstall, the *user data residuals* left in %LOCALAPPDATA% or %APPDATA% may become yellow candidates for a follow-up pass.",
+      "safer_partials": ["Use official uninstall. For Store apps, they clean their Packages tree."],
+      "tradeoff_notes": "High risk of unbootable or broken Windows. Not worth any space.",
+      "prune_commands": {},
+      "notes": "Agent must respect in all scans. On Windows host, WizTree or top scans will surface these — agent filters using this catalog + decision rules. Same for System Volume Information, etc."
+    },
+    {
+      "id": "macos-system-protected",
+      "paths": ["/System", "/Library", "/usr/bin", "/usr/lib", "/private/var/vm"],
+      "category": "red",
+      "platforms": ["macos"],
+      "description": "macOS SIP-protected system volumes, root Library, swap, core binaries",
+      "why_this_bucket": "System Integrity Protection (SIP) and signed OS components. Deleting breaks the OS, security, or requires recovery mode / reinstall.",
+      "decision_guidance": "Absolute never. Guide to App Store / /Applications uninstall, or brew uninstall for CLI tools. Time Machine / local snapshots are handled separately via tmutil (yellow/purgeable).",
+      "safer_partials": [],
+      "tradeoff_notes": "Risk of bricking macOS install or losing boot.",
+      "prune_commands": {},
+      "notes": "Agent running on macOS must never target these. Use diskutil for snapshots instead."
+    }
+  ]
+}

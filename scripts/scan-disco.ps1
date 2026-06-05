@@ -1,7 +1,24 @@
 # ============================================================
-#  scan-disco.ps1  -  Disk space diagnostic (READ ONLY)
+#  scan-disco.ps1  -  Disk space diagnostic (READ ONLY) — REFERENCE / FALLBACK
 #  Deletes nothing. Shows what is taking up space.
-#  Run: powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\scan-disco.ps1"
+#
+#  ROLE IN THE SKILL (minimal reliance on generation; direct primary): Safe reference impl + standalone helper.
+#  In primary agent flow (see SKILL.md minimal powerful principles + adaptive decision tree): agent performs
+#  env detection first, *loads catalog/targets.json* (data-driven core w/ rich metadata for cat+edu+prune), then
+#  **uses its *own* tools for live scanning + DIRECT EXECUTION after explicit permission**.
+#  This script used as:
+#  - Manual diagnostic (no agent; illustrative).
+#  - Rare audit/ref (read/adapt; populate *only* confirmed catalog entries + live authorized *this run*).
+#  - Fallback (direct impossible or user *explicitly* requests runnable artifact).
+#  NEVER default delivery.
+#
+#  Catalog = master source of portable targets, 🟢🟡🔴, why/decision/safer/tradeoff, recommended cmds.
+#  Scripts demonstrate patterns (dynamic top-folder scans powerful on Windows; agent emulates in direct or tiny emit).
+#
+#  Run (standalone): powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\scan-disco.ps1"
+#  See SKILL.md, catalog/, REFERENCE.md, detection-commands.md, explanations/, and commands/ (the rich portable safe command reference library of cross-platform snippets, helpers, and patterns — agent reads specific .md, adapts live paths from detection/catalog, invokes directly via tools after permission) for the
+#  full modern generalist direct-execution educational skill.
+#  This file is a reference for Windows PowerShell dynamic scanning patterns.
 # ============================================================
 
 function Get-FolderSizeGB($path) {
@@ -28,7 +45,8 @@ Get-ChildItem $env:USERPROFILE -Directory -Force -ErrorAction SilentlyContinue |
     [PSCustomObject]@{ GB = (Get-FolderSizeGB $_.FullName); Folder = $_.Name }
 } | Sort-Object GB -Descending | Select-Object -First 12 | Format-Table -AutoSize
 
-Write-Host "=== KNOWN JUNK SPOTS ===" -ForegroundColor Yellow
+Write-Host "=== KNOWN JUNK SPOTS (illustrative — master in catalog/targets.json) ===" -ForegroundColor Yellow
+Write-Host "    (See catalog/ for the full data-driven list with education metadata. Agent uses catalog + this style of dynamic top-N scan.)" -ForegroundColor DarkGray
 [PSCustomObject]@{ GB = (Get-FolderSizeGB "$env:LOCALAPPDATA\Temp"); What = "User Temp (deletable)" }
 [PSCustomObject]@{ GB = (Get-FolderSizeGB "$env:USERPROFILE\Downloads"); What = "Downloads (review)" } |
     Format-Table -AutoSize

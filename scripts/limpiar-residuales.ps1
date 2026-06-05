@@ -1,10 +1,21 @@
 # ==============================================================
-#  limpiar-residuales.ps1  --  TEMPLATE
+#  limpiar-residuales.ps1  --  REFERENCE TEMPLATE / FALLBACK EXAMPLE
+#  (not primary delivery)
+#
 #  Kills "tech debt" in AppData\Local:
-#    A) curated list of confirmed-dead app folders  (Claude fills $dead)
+#    A) curated list of confirmed-dead app folders
 #    B) EVERY level-1 folder that is 100% empty (0 bytes)  (generic, no edit)
 #  Shows everything and asks before deleting.
-#  Run: powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\residuals-<user>.ps1"
+#
+#  ROLE (scripts secondary; direct PRIMARY): Reference impl of empty-folder sweep + dead-app pattern (skip list for safety).
+#  In primary skill flow (SKILL.md minimal principles + adaptive decision tree): agent executes *equivalent logic directly*
+#  with its tools after detection + edu + interview + explicit permission.
+#  Catalog supplies known residuals + yellows w/ rich edu metadata; populates *only* confirmed from this run.
+#  Emit filled copy of this *only* as rare audit/fallback artifact (user request or direct blocked). Never default.
+#
+#  Run: powershell -ExecutionPolicy Bypass -File "..."
+#  Full modern usage: SKILL.md + catalog/ + REFERENCE + detection + explanations/ + commands/ (esp. empty-sweeps.md for the pattern + skip lists + inspect; privilege-bridging etc.)
+#  This script is the canonical reference implementation of the empty residual + dead-app curated sweep. Agent should emulate the skip logic + list-before-delete directly, or emit a copy populated only with this-run's confirmed dead names.
 # ==============================================================
 
 $L = $env:LOCALAPPDATA

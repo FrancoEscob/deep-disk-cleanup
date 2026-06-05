@@ -1,14 +1,23 @@
 # ==============================================================
-#  limpieza-profunda.ps1  --  TEMPLATE (not run-as-is)
+#  limpieza-profunda.ps1  --  REFERENCE TEMPLATE / FALLBACK EXAMPLE
+#  (not a primary delivery mechanism)
 #
-#  The agent (Claude) generates a PERSONALIZED copy of this after
-#  scanning the machine: it keeps the helpers + universal caches and
-#  fills the >>> PERSONALIZE <<< block with the user's CONFIRMED dead
-#  apps from the scan. Save the result as cleanup-<user>.ps1.
+#  ROLE (scripts strictly secondary; direct exec PRIMARY per SKILL.md minimal contract + tree):
+#  Safe, well-commented reference impl of prompting logic, universal 🟢 cache handling (auto-skip absent),
+#  browser cache-only clears, size reporting, # >>> PERSONALIZE <<< section.
 #
-#  Every block prompts (s/n) and reports GB freed. Touches nothing
-#  system-level. Universal caches auto-skip if not present.
-#  Run: powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\cleanup-<user>.ps1"
+#  In the skill (SKILL.md): **direct agent execution** after detection + edu (WSL etc. + opt-in) + load catalog/targets.json
+#  (data-driven core w/ rich metadata) + interview + explicit permission is PRIMARY.
+#  Script gen / emission of filled copy = SECONDARY (fallback for audit, explicit user request, or direct impossible).
+#  Catalog (rich metadata) = master list of targets + edu text; agent populates *only* user-confirmed entries from *this* conversation.
+#
+#  Agent may read/copy to user's machine + populate only targets user explicitly confirmed *in this conversation* (catalog or live).
+#  Every block still prompts and reports GB. Never default to generation.
+#
+#  Standalone / manual: powershell -ExecutionPolicy Bypass -File "..."
+#  See SKILL.md (Adaptive strategies, Permission Protocol, catalog section),
+#  catalog/README.md, REFERENCE.md, detection-commands.md, explanations/, and commands/ (PORTABLE SAFE COMMAND REFERENCE LIBRARY — primary granular snippets for agent to read/adapt/invoke directly; this .ps1 is the full interactive reference template showing composition of browser-cache-only, AskDelete, personalize sections, and empty sweep patterns).
+#  When emitting fallback, compose only from authorized + commands/ examples.
 # ==============================================================
 
 $L = $env:LOCALAPPDATA
@@ -52,6 +61,9 @@ $freeBefore = [math]::Round((Get-PSDrive C).Free/1GB,1)
 Write-Host "Free space before: $freeBefore GB" -ForegroundColor Cyan
 
 # ---------- 1. Dev caches (universal, regenerate; absent ones auto-skip) ----------
+# These (and many more) are defined with rich metadata in catalog/targets.json.
+# When generating a personalized script from the catalog, only include entries
+# the user confirmed. Prefer the prune_commands from the catalog entry when available.
 Write-Host ""
 Write-Host "=== 1) DEV CACHES (safe, regenerate) ===" -ForegroundColor Cyan
 AskDelete "$L\npm-cache"       "npm-cache"
